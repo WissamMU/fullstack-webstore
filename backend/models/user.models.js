@@ -1,6 +1,5 @@
 import mongoose from "mongoose";
-import bcrypt from "bcrypt";
-
+import bcrypt from "bcryptjs";
 // creat user schema
 const userSchema = new mongoose.Schema({
     name: {
@@ -20,6 +19,7 @@ const userSchema = new mongoose.Schema({
         minlength: [8, "Password must be at least 8 characters"],
     },
     role: {
+        type: String, 
         enum: ["user", "admin"],
         default: "user",
     },
@@ -37,8 +37,6 @@ const userSchema = new mongoose.Schema({
     ],
 }, { timestamps: true });
 
-// use the user schema to create a user model
-const User = mongoose.model("User", userSchema);
 
 // pre-save hook to hash password before saving to the database
 userSchema.pre("save", async function (next) {
@@ -59,6 +57,9 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.comparePassword = async function (password) {
     return await bcrypt.compare(password, this.password);
 };
+
+// use the user schema to create a user model
+const User = mongoose.model("User", userSchema);
 
 // export the user model
 export default User;

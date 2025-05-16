@@ -10,6 +10,9 @@ dotenv.config();
 
 const PORT = process.env.PORT || 1313;
 
+// this middleware is used to parse the incoming request body as JSON
+app.use(express.json({ limit: "10mb" }));
+
 // route
 app.use('/api/auth', authRoutes)
 
@@ -17,6 +20,5 @@ app.use('/api/auth', authRoutes)
 app.listen(PORT, () => {
   console.log('Server is running on port : ' + PORT);
 
-  
   connectDB();
 });
