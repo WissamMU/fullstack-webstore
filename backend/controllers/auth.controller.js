@@ -43,7 +43,11 @@ export const signup = async (req, res) => {
     try {
         if (userExists) {
             return res.status(400).json({
-                message: "User already exists",
+              message: "User already exists please try another email",
+            });
+        }else if (!email || !password || !name) {
+            return res.status(400).json({
+              message: "Please fill in all fields name email and password",
             });
         }
         // create a new user

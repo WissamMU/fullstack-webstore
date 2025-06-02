@@ -383,3 +383,62 @@ export const refreshToken = async (req, res) => {
 };
 ```
 
+14. product api 
+first connect routes in server .js 
+```js
+import productRoutes from './routes/product.route.js';
+
+app.use('/api/products', productRoutes)
+
+```
+Second make routes
+``` js 
+routes/product.route.js
+import express from "express";
+
+const router = express.Router();
+
+router.get("/" , getAllProducts);
+
+export default router;d
+```
+third make product models
+```js
+models/product.model.js
+import mongoose from 'mongoose';
+
+const productSchema = new mongoose.Schema(
+    {
+        name: {
+            type: String,
+            required: true,
+        },
+        description: {
+            type: String,
+            required: true,
+        },
+        price: {
+            type: Number,
+            required: true,
+        },
+        image: {
+            type: String,
+            required: [true, "Imgae is requried"],
+        },
+        category: {
+            type: String,
+            required: true,
+        },
+        isFeaured: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    { timestamps: true }
+);
+
+const Product = mongoose.model("Product", productSchema);
+
+export default Product;
+
+```

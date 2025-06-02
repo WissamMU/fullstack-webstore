@@ -3,7 +3,8 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 
 import authRoutes from './routes/auth.route.js';
-import { connect } from 'mongoose';
+import productRoutes from './routes/product.route.js';
+
 import { connectDB } from './lib/db.js';
 
 const app = express();
@@ -16,7 +17,8 @@ app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser()); // this middleware is used to parse cookies from the request
 
 // route
-app.use('/api/auth', authRoutes)
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes)
 
 
 app.listen(PORT, () => {
