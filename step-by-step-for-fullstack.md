@@ -442,3 +442,123 @@ const Product = mongoose.model("Product", productSchema);
 export default Product;
 
 ```
+middleware
+```js
+middleware/auth.middleware.js
+
+
+```
+# 🔐 Middleware: `protectRoute` and `adminRoute`
+
+This middleware is used to **protect backend routes** using **JWT authentication** and **role-based access control**.
+
+---
+
+## ✅ `protectRoute` Middleware
+
+### 📌 Purpose:
+Allows only users with a **valid access token** (stored in cookies) to access protected routes.
+
+---
+
+### 🔍 Step-by-step Breakdown:
+
+```js
+const accessToken = req.cookies.accessToken;
+```
+- Get the `accessToken` from the cookies.
+- This is the token sent by the client on each request.
+
+---
+
+```js
+if (!accessToken) {
+  return res.status(401).json({ message: "Unauthorized - No access token provided" });
+}
+```
+- If no token is found, return a `401 Unauthorized` response.
+
+---
+
+```js
+const decoded = jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET);
+```
+- Decode the JWT token using the secret stored in the `.env` file.
+- If the token is invalid or expired, an error will be thrown.
+
+---
+
+```js
+const user = await User.findById(decoded.userId).select("-password");
+```
+- Fetch the user from the database using the ID stored in the token.
+- Exclude the password field for security.
+
+---
+
+```js
+if (!user) {
+  return res.status(401).json({ message: "User not found" });
+}
+```
+- If the user doesn't exist in the database, deny access.
+
+---
+
+```js
+req.user = user;
+```
+- Attach the user object to the `req` so it can be accessed in the next route or middleware.
+
+---
+
+```js
+next();
+```
+- Proceed to the next middleware or route handler.
+
+---
+
+### 🔄 Handling Token Expiration:
+
+```js
+if (error.name === "TokenExpiredError") {
+  return res.status(401).json({ message: "Unauthorized - Access token expired" });
+}
+```
+- If the JWT token is expired, return an appropriate error message.
+
+---
+
+## ✅ `adminRoute` Middleware
+
+### 📌 Purpose:
+Allows access only to users with the `admin` role.
+
+---
+
+### 🔍 Code Explanation:
+
+```js
+if (req.user && req.user.role === "admin") {
+  next(); // Proceed if the user is an admin
+} else {
+  return res.status(403).json({ message: "Access denied - Admin only" });
+}
+```
+- Checks if the authenticated user (`req.user`) has the role `"admin"`.
+- If not, return a `403 Forbidden` response.
+
+---
+
+## ✅ Usage Example
+
+```js
+app.get("/api/admin/dashboard", protectRoute, adminRoute, (req, res) => {
+  res.json({ message: "Welcome, admin!" });
+});
+```
+- `protectRoute` ensures the user is authenticated.
+- `adminRoute` ensures the user has admin privileges.
+
+---
