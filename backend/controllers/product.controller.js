@@ -1,4 +1,5 @@
 import { redis } from "../lib/redis.js";
+import cloudinary from "../lib/cloudinary.js";
 import Product from "../models/product.model.js";
 
 export const getAllProducts = async (req, res) => {
@@ -31,6 +32,36 @@ export const getFeaturedProducts = async (req, res) => {
         await redis.set("featured_products", JSON.stringify(featuredProducts));
 
         res.json(featuredProducts);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+export const createProduct = async (req, res) => {
+    try {
+        
+        const { name, price, description, image, category } = req.body;
+        
+        let cloudinaryResponse = null;
+        
+        // upload image to cloudinary
+        if (image) {
+            cloudinaryResponse = await cloudinary.uploader.upload(image, {
+                folder: "products",
+            });
+        }
+        
+        // create a new product
+        const product = new Product({
+            name,
+            price,
+            description,
+            image: cloudinaryResponse?.secure_url ? cloudinaryResponse?.secure_url : "" ,
+            category,
+        });
+        
+        res.status(201).json(product);
     } catch (error) {
         console.log(error);
         res.status(500).json({ message: "Internal server error" });
