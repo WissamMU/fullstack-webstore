@@ -38,32 +38,61 @@ export const getFeaturedProducts = async (req, res) => {
     }
 };
 
+// 📄 backend/controllers/product.controller.js
 export const createProduct = async (req, res) => {
-    try {
-        
-        const { name, price, description, image, category } = req.body;
-        
-        let cloudinaryResponse = null;
-        
-        // upload image to cloudinary
-        if (image) {
-            cloudinaryResponse = await cloudinary.uploader.upload(image, {
-                folder: "products",
-            });
-        }
-        
-        // create a new product
-        const product = new Product({
-            name,
-            price,
-            description,
-            image: cloudinaryResponse?.secure_url ? cloudinaryResponse?.secure_url : "" ,
-            category,
-        });
-        
-        res.status(201).json(product);
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: "Internal server error" });
+  try {
+    const { name, price, description, image, category } = req.body;
+
+    let cloudinaryResponse = null;
+
+    // 🌤 Upload the image to Cloudinary if present
+    if (image) {
+      cloudinaryResponse = await cloudinary.uploader.upload(image, {
+        folder: "products",
+      });
     }
+
+    // 🧱 Create new product
+    const product = new Product({
+      name,
+      price,
+      description,
+      image: cloudinaryResponse?.secure_url || "",
+      category,
+    });
+
+    await product.save(); 
+
+    res.status(201).json(product);
+  } catch (error) {
+    console.error("Create Product Error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const deleteProduct = async (req, res) => {
+	try {
+		const product = await Product.findById(req.params.id);
+
+		if (!product) {
+			return res.status(404).json({ message: "Product not found" });
+		}
+
+		if (product.image) {
+			const publicId = product.image.split("/").pop().split(".")[0];
+			try {
+				await cloudinary.uploader.destroy(`products/${publicId}`);
+				console.log("deleted image from cloduinary");
+			} catch (error) {
+				console.log("error deleting image from cloduinary", error);
+			}
+		}
+
+		await Product.findByIdAndDelete(req.params.id);
+
+		res.json({ message: "Product deleted successfully" });
+	} catch (error) {
+		console.log("Error in deleteProduct controller", error.message);
+		res.status(500).json({ message: "Server error", error: error.message });
+	}
 };

@@ -763,7 +763,7 @@ export const createProduct = async (req, res) => {
       category,
     });
 
-    await product.save(); // 👈 don't forget to save the product
+    await product.save(); 
 
     res.status(201).json(product);
   } catch (error) {
@@ -771,3 +771,82 @@ export const createProduct = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+```
+## 🔥 Step 17: Delete Product (from Database and Cloudinary)
+
+In this step, we’ll create a secure route to allow **admin users** to delete products from both the **MongoDB database** and **Cloudinary storage**.
+
+---
+
+### 🛣️ 1. Define the Route
+
+We’ll create a `DELETE` route secured by:
+- ✅ `protectRoute` (ensures user is logged in)
+- 🔐 `adminRoute` (ensures user is an admin)
+
+```js
+// 📄 backend/routes/product.route.js
+import { deleteProduct } from "../controllers/product.controller.js";
+
+router.delete("/:id", protectRoute, adminRoute, deleteProduct);
+```
+
+---
+
+### 🧠 2. Implement the Controller Logic
+
+We'll:
+- Check if the product exists
+- Extract the public ID from the image URL
+- Remove the image from Cloudinary
+- Delete the product from MongoDB
+
+```js
+// 📄 backend/controllers/product.controller.js
+import Product from "../models/product.model.js";
+import cloudinary from "../lib/cloudinary.js";
+
+export const deleteProduct = async (req, res) => {
+  try {
+    // 🧾 Step 1: Fetch product by ID
+    const product = await Product.findById(req.params.id);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // 🗑️ Step 2: Delete image from Cloudinary
+    if (product.image) {
+      const publicId = product.image.split("/").pop().split(".")[0]; // Extract Cloudinary image public ID
+      try {
+        await cloudinary.uploader.destroy(`products/${publicId}`);
+        console.log("✅ Image deleted from Cloudinary");
+      } catch (error) {
+        console.log("⚠️ Error deleting image from Cloudinary:", error);
+      }
+    }
+
+    // 🗃️ Step 3: Delete product from database
+    await Product.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({ message: "🗑️ Product deleted successfully" });
+
+  } catch (error) {
+    console.error("❌ Error in deleteProduct controller:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+### 🧠 Summary
+
+- ✅ Verifies the product exists.
+- 🧹 Extracts and deletes the Cloudinary image using its public ID.
+- 🗃️ Deletes the product document from MongoDB.
+- 🛡️ Secured by admin middleware.
+
+---
+
+> 💡 **Tip:** Use Cloudinary's folder structure (`products/`) to organize and manage your image assets cleanly.
