@@ -850,3 +850,69 @@ export const deleteProduct = async (req, res) => {
 ---
 
 > 💡 **Tip:** Use Cloudinary's folder structure (`products/`) to organize and manage your image assets cleanly.
+## 💡 Step 18: Product Recommendations (Random Selection)
+
+In this step, we implement a route to return a list of **randomly recommended products** from the database.
+
+---
+
+### 🛣️ 1. Define the Route
+
+Create a public route that fetches product recommendations:
+
+```js
+// 📄 backend/routes/product.route.js
+import { getRecommendedProducts } from "../controllers/product.controller.js";
+
+router.get("/recommendations", getRecommendedProducts);
+```
+
+> 📌 This route is **not protected**, so it's accessible to all users or visitors.
+
+---
+
+### 🧠 2. Controller: Get Recommended Products
+
+We’ll use MongoDB's `$sample` aggregation to randomly select 4 products and return only necessary fields.
+
+```js
+// 📄 backend/controllers/product.controller.js
+import Product from "../models/product.model.js";
+
+export const getRecommendedProducts = async (req, res) => {
+  try {
+    const products = await Product.aggregate([
+      {
+        $sample: { size: 4 }, // 🎲 Randomly select 4 products
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          image: 1,
+          price: 1,
+        },
+      },
+    ]);
+
+    res.status(200).json(products);
+
+  } catch (error) {
+    console.error("❌ Error in getRecommendedProducts controller:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+### 🔍 Summary
+
+- 🎲 Uses MongoDB aggregation to return a random sample of products.
+- 📦 Project stage selects only essential fields.
+- 🟢 Useful for **homepage carousels**, **"You may also like"**, or **product discovery** features.
+
+---
+
+> 💡 **Tip:** You can expand this in the future to filter by category, price range, or user history.
