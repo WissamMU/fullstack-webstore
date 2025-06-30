@@ -916,3 +916,103 @@ export const getRecommendedProducts = async (req, res) => {
 ---
 
 > 💡 **Tip:** You can expand this in the future to filter by category, price range, or user history.
+## 🗂️ Step 19: Categories and Featured Product Toggling
+
+This step covers two key features:
+
+1. 🔎 Filtering products by `category`
+2. ⭐ Toggling a product's `isFeatured` status (admin only) and updating the Redis cache
+
+---
+
+### 🛣️ 1. Define Routes
+
+Add the following routes in the product router:
+
+```js
+// 📄 backend/routes/product.route.js
+import {
+  getProductsByCategory,
+  toggleFeaturedProduct,
+} from "../controllers/product.controller.js";
+
+router.get("/category/:category", getProductsByCategory);
+router.patch("/:id", protectRoute, adminRoute, toggleFeaturedProduct);
+```
+
+---
+
+### 🔍 2. Get Products by Category
+
+Allows filtering products by their `category` parameter in the URL.
+
+```js
+// 📄 backend/controllers/product.controller.js
+export const getProductsByCategory = async (req, res) => {
+  const { category } = req.params;
+  try {
+    const products = await Product.find({ category });
+    res.status(200).json({ products });
+  } catch (error) {
+    console.error("Error in getProductsByCategory controller:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+### ⭐ 3. Toggle `isFeatured` for a Product (Admin Only)
+
+This controller toggles the `isFeatured` flag of a product and updates the Redis cache.
+
+```js
+// 📄 backend/controllers/product.controller.js
+export const toggleFeaturedProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (product) {
+      product.isFeatured = !product.isFeatured;
+      const updatedProduct = await product.save();
+
+      await updateFeaturedProductsCache(); // 🔄 Refresh Redis cache
+
+      res.status(200).json(updatedProduct);
+    } else {
+      res.status(404).json({ message: "Product not found" });
+    }
+  } catch (error) {
+    console.error("Error in toggleFeaturedProduct controller:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+### 🔄 4. Update Redis Cache After Toggling
+
+Refreshes the cache of featured products using `.lean()` for performance.
+
+```js
+async function updateFeaturedProductsCache() {
+  try {
+    const featuredProducts = await Product.find({ isFeatured: true }).lean();
+    await redis.set("featured_products", JSON.stringify(featuredProducts));
+  } catch (error) {
+    console.error("Error in updateFeaturedProductsCache:", error.message);
+  }
+}
+```
+
+---
+
+### ✅ Summary
+
+- 🗂️ `GET /category/:category`: Returns products filtered by category.
+- 🔄 `PATCH /:id`: Admin-only toggle for product's `isFeatured` status.
+- 🚀 Redis cache is refreshed automatically for performance.
+
+---
+
+> 💡 **Tip:** You can expand categories later into a dedicated model or drop-down for filtering in frontend UI.
