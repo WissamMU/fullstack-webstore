@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 
 import authRoutes from './routes/auth.route.js';
 import productRoutes from './routes/product.route.js';
+import productRoutes from './routes/cart.route.js';
 
 import { connectDB } from './lib/db.js';
 
@@ -19,6 +20,7 @@ app.use(cookieParser()); // this middleware is used to parse cookies from the re
 // route
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes)
+app.use('/api/cart', cartRoutes)
 
 
 app.listen(PORT, () => {

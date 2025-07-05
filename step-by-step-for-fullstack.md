@@ -1016,3 +1016,171 @@ async function updateFeaturedProductsCache() {
 ---
 
 > 💡 **Tip:** You can expand categories later into a dedicated model or drop-down for filtering in frontend UI.
+
+## 🛒 Step 20: Cart Routes and Controller Logic
+
+In this step, we create a **shopping cart system** for users.  
+Users can add, update, and remove items from their cart. The cart is stored in the user document in MongoDB.
+
+---
+
+### 🛠️ Note: Route Mounting in Server
+
+Make sure to mount the cart routes inside `server.js`:
+
+```js
+// 📄 backend/server.js
+import cartRoutes from './routes/cart.route.js';
+app.use('/api/cart', cartRoutes);
+```
+
+---
+
+### 📦 1. Define Cart Routes
+
+```js
+// 📄 backend/routes/cart.route.js
+import express from "express";
+import {
+  protectRoute,
+} from "../middleware/auth.middleware.js";
+import {
+  addToCart,
+  getCartProducts,
+  removeAllFromCart,
+  updateQuantity,
+} from "../controllers/cart.controller.js";
+
+const router = express.Router();
+
+router.get("/", protectRoute, getCartProducts);           // 🧾 Get cart items
+router.post("/", protectRoute, addToCart);                // ➕ Add to cart
+router.delete("/", protectRoute, removeAllFromCart);      // 🗑️ Remove all or specific item
+router.put("/:id", protectRoute, updateQuantity);         // 🔄 Update quantity
+
+export default router;
+```
+
+---
+
+### 🧠 2. Cart Controller Functions
+
+#### 🔍 Get Cart Products
+
+```js
+// 📄 backend/controllers/cart.controller.js
+import Product from "../models/product.model.js";
+
+export const getCartProducts = async (req, res) => {
+  try {
+    const products = await Product.find({ _id: { $in: req.user.cartItems } });
+
+    const cartItems = products.map((product) => {
+      const item = req.user.cartItems.find((cartItem) => cartItem.id === product.id);
+      return { ...product.toJSON(), quantity: item.quantity };
+    });
+
+    res.json(cartItems);
+  } catch (error) {
+    console.error("Error in getCartProducts controller:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+#### ➕ Add to Cart
+
+```js
+export const addToCart = async (req, res) => {
+  try {
+    const { productId } = req.body;
+    const user = req.user;
+
+    const existingItem = user.cartItems.find(item => item.id === productId);
+    if (existingItem) {
+      existingItem.quantity += 1;
+    } else {
+      user.cartItems.push({ id: productId, quantity: 1 });
+    }
+
+    await user.save();
+    res.json(user.cartItems);
+  } catch (error) {
+    console.error("Error in addToCart controller:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+```
+
+---
+
+#### 🗑️ Remove All or One Item from Cart
+
+```js
+export const removeAllFromCart = async (req, res) => {
+  try {
+    const { productId } = req.body;
+    const user = req.user;
+
+    if (!productId) {
+      user.cartItems = []; // Remove all
+    } else {
+      user.cartItems = user.cartItems.filter(item => item.id !== productId);
+    }
+
+    await user.save();
+    res.json(user.cartItems);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+#### 🔄 Update Quantity
+
+```js
+export const updateQuantity = async (req, res) => {
+  try {
+    const { id: productId } = req.params;
+    const { quantity } = req.body;
+    const user = req.user;
+
+    const existingItem = user.cartItems.find(item => item.id === productId);
+
+    if (existingItem) {
+      if (quantity === 0) {
+        user.cartItems = user.cartItems.filter(item => item.id !== productId);
+      } else {
+        existingItem.quantity = quantity;
+      }
+
+      await user.save();
+      res.json(user.cartItems);
+    } else {
+      res.status(404).json({ message: "Product not found in cart" });
+    }
+  } catch (error) {
+    console.error("Error in updateQuantity controller:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+### ✅ Summary
+
+- 🧾 `GET /api/cart` — Get all items in user cart.
+- ➕ `POST /api/cart` — Add a product to the cart.
+- 🗑️ `DELETE /api/cart` — Remove one or all products from the cart.
+- 🔄 `PUT /api/cart/:id` — Update the quantity of a specific product in the cart.
+
+> 🔐 All routes are protected and require authentication.
+
+---
+
+> 💡 **Tip:** Later, connect this cart system to a checkout or payment process using Stripe or PayPal.
