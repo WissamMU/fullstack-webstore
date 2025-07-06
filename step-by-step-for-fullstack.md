@@ -1184,3 +1184,140 @@ export const updateQuantity = async (req, res) => {
 ---
 
 > 💡 **Tip:** Later, connect this cart system to a checkout or payment process using Stripe or PayPal.
+
+## 🎟️ Step 21: Coupon System (Apply Discounts Per User)
+
+In this step, we implement a **coupon/discount code system**.  
+Each user can have a single unique coupon that gives them a discount for a limited time.
+
+---
+
+### ❓ What Is This?
+
+- **Coupons** are tied to a specific `userId`
+- Each coupon contains:
+  - A unique code (e.g., `SAVE10`)
+  - A discount percentage
+  - An expiration date
+  - A flag (`isActive`) to enable/disable usage
+- 🔐 Coupons can only be used by the user they are assigned to
+
+---
+
+### 🛠️ Mount the Route in `server.js`
+
+```js
+// 📄 backend/server.js
+import couponRoutes from './routes/coupon.route.js';
+app.use('/api/coupons', couponRoutes);
+```
+
+---
+
+### 📦 Define the Coupon Model
+
+```js
+// 📄 backend/models/coupon.model.js
+import mongoose from "mongoose";
+
+const couponSchema = new mongoose.Schema(
+  {
+    code: { type: String, required: true, unique: true },
+    discountPercentage: { type: Number, required: true, min: 0, max: 100 },
+    expirationDate: { type: Date, required: true },
+    isActive: { type: Boolean, default: true },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true
+    }
+  },
+  { timestamps: true }
+);
+
+const Coupon = mongoose.model("Coupon", couponSchema);
+export default Coupon;
+```
+
+---
+
+### 📡 Define Routes for Coupons
+
+```js
+// 📄 backend/routes/coupon.route.js
+import express from "express";
+import { protectRoute } from "../middleware/auth.middleware.js";
+import { getCoupon, validateCoupon } from "../controllers/coupon.controller.js";
+
+const router = express.Router();
+
+router.get("/", protectRoute, getCoupon);                // 🔍 Get active coupon
+router.post("/validate", protectRoute, validateCoupon);  // ✅ Validate a coupon
+
+export default router;
+```
+
+---
+
+### 🧠 Controller Logic
+
+#### 🔍 Get User’s Active Coupon
+
+```js
+// 📄 backend/controllers/coupon.controller.js
+import Coupon from "../models/coupon.model.js";
+
+export const getCoupon = async (req, res) => {
+  try {
+    const coupon = await Coupon.findOne({ userId: req.user._id, isActive: true });
+    res.json(coupon || null);
+  } catch (error) {
+    console.error("Error in getCoupon controller:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+#### ✅ Validate a Coupon
+
+```js
+export const validateCoupon = async (req, res) => {
+  try {
+    const { code } = req.body;
+    const coupon = await Coupon.findOne({ code, userId: req.user._id, isActive: true });
+
+    if (!coupon) {
+      return res.status(404).json({ message: "Coupon not found" });
+    }
+
+    if (coupon.expirationDate < new Date()) {
+      coupon.isActive = false;
+      await coupon.save();
+      return res.status(404).json({ message: "Coupon expired" });
+    }
+
+    res.json({
+      message: "Coupon is valid",
+      code: coupon.code,
+      discountPercentage: coupon.discountPercentage,
+    });
+
+  } catch (error) {
+    console.error("Error in validateCoupon controller:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+```
+
+---
+
+### ✅ Summary
+
+- 🔒 Coupons are user-specific and protected.
+- ⏳ Coupons expire using a date field and deactivate automatically.
+- 🧾 Valid coupons return discount info for client-side use (e.g., at checkout).
+
+> 💡 **Tip:** You can add coupon creation logic for admin or marketing flows later.
