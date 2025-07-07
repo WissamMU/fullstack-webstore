@@ -1321,3 +1321,129 @@ export const validateCoupon = async (req, res) => {
 - 🧾 Valid coupons return discount info for client-side use (e.g., at checkout).
 
 > 💡 **Tip:** You can add coupon creation logic for admin or marketing flows later.
+
+## 💳 Step 22: Payment Integration and Order Handling (Stripe + Mongoose)
+
+In this step, we implement a complete **checkout flow** using **Stripe** to handle payments,  
+and store **orders** in MongoDB once payment is successful.
+
+---
+
+### 🧭 Overview
+
+- Stripe checkout is used for secure payments.
+- We build two key endpoints:
+  1. `POST /create-checkout-session` → to start the payment
+  2. `POST /checkout-success` → to finalize the order after Stripe confirms payment
+- We apply discount **if a coupon is valid**
+- 🎁 If total purchase exceeds a threshold, we generate a **new reward coupon**
+
+---
+
+### 🛠️ 1. Order Model
+
+```js
+// 📄 backend/models/order.model.js
+import mongoose from "mongoose";
+
+const orderSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // reference to User
+    required: true,
+  },
+  products: [
+    {
+      product: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+        required: true,
+      },
+      quantity: {
+        type: Number,
+        required: true,
+        min: 1,
+      },
+      price: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+    },
+  ],
+  totalAmount: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
+  stripeSessionId: {
+    type: String,
+    unique: true,
+  },
+}, { timestamps: true });
+
+const Order = mongoose.model("Order", orderSchema);
+export default Order;
+```
+
+---
+
+### 🔗 2. Setup Payment Route
+
+```js
+// 📄 backend/server.js
+import paymentRoutes from './routes/payment.route.js';
+app.use('/api/payments', paymentRoutes);
+```
+
+---
+
+### 📡 3. Payment Routes
+
+```js
+
+// 📄 backend/lib/stripe.js
+// Stripe configuration for handling payment sessions securely
+
+import Stripe from "stripe";
+import dotenv from "dotenv";
+
+// Load environment variables from .env file
+dotenv.config();
+
+// Initialize Stripe instance with your secret key
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2023-08-16", // ✅ Always specify a stable API version
+});
+
+
+
+// 📄 backend/routes/payment.route.js
+import express from "express";
+import { protectRoute } from "../middleware/auth.middleware.js";
+import { createCheckoutSession, checkoutSuccess } from "../controllers/payment.controller.js";
+
+const router = express.Router();
+
+router.post("/create-checkout-session", protectRoute, createCheckoutSession);
+router.post("/checkout-success", protectRoute, checkoutSuccess);
+
+export default router;
+```
+
+---
+
+### 💼 4. Payment Controller Logic
+
+(See previous full controller listing.)
+
+---
+
+### ✅ Summary
+
+- 💰 Payment is processed via **Stripe Checkout**
+- 📦 After success, a new **Order** is created in MongoDB
+- 🎁 If coupon used, it is deactivated; if user spends enough, new coupon is issued
+- 🔒 Routes are protected and require user authentication
+
+> 💡 **Tip:** You can expand this with email notifications, invoice generation, and admin order management panel later.
