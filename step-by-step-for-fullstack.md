@@ -1447,3 +1447,167 @@ export default router;
 - 🔒 Routes are protected and require user authentication
 
 > 💡 **Tip:** You can expand this with email notifications, invoice generation, and admin order management panel later.
+
+## 📊 Step 23: Admin Dashboard Analytics (Sales, Revenue, Users, Products)
+
+In this step, we build an **analytics route** for the admin dashboard to display:
+
+- 📈 Total users
+- 📦 Total products
+- 💰 Total sales and revenue
+- 📅 Daily sales and revenue over the past 7 days
+
+---
+
+### 🧭 What It Does
+
+- Admin sends a GET request to `/api/analytics`
+- Server responds with:
+  - Aggregate stats: total users, products, orders, revenue
+  - Daily revenue & sales chart-ready data for the last 7 days
+
+---
+
+### 🛠️ Add Analytics Route to `server.js`
+
+```js
+// 📄 backend/server.js
+import analyticsRoutes from './routes/analytics.route.js';
+app.use('/api/analytics', analyticsRoutes);
+```
+
+---
+
+### 📡 Define Routes
+
+```js
+// 📄 backend/routes/analytics.route.js
+import express from "express";
+import { protectRoute, adminRoute } from "../middleware/auth.middleware.js";
+import { getAnalyticsData, getDailySalesData } from "../controllers/analytics.controller.js";
+
+const router = express.Router();
+
+router.get("/", protectRoute, adminRoute, async (req, res) => {
+  try {
+    const analyticsData = await getAnalyticsData();
+
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+
+    const dailySalesData = await getDailySalesData(startDate, endDate);
+
+    res.json({ analyticsData, dailySalesData });
+  } catch (error) {
+    console.error("Error in analytics route:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+export default router;
+```
+
+---
+
+### 📈 Controller: getAnalyticsData()
+
+```js
+// 📄 backend/controllers/analytics.controller.js
+import Order from "../models/order.model.js";
+import Product from "../models/product.model.js";
+import User from "../models/user.model.js";
+
+export const getAnalyticsData = async () => {
+  const totalUsers = await User.countDocuments();
+  const totalProducts = await Product.countDocuments();
+
+  const salesData = await Order.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalSales: { $sum: 1 },
+        totalRevenue: { $sum: "$totalAmount" },
+      },
+    },
+  ]);
+
+  const { totalSales, totalRevenue } = salesData[0] || { totalSales: 0, totalRevenue: 0 };
+
+  return {
+    users: totalUsers,
+    products: totalProducts,
+    totalSales,
+    totalRevenue,
+  };
+};
+```
+
+---
+
+### 📅 Controller: getDailySalesData()
+
+```js
+export const getDailySalesData = async (startDate, endDate) => {
+  try {
+    const dailySalesData = await Order.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          sales: { $sum: 1 },
+          revenue: { $sum: "$totalAmount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const dateArray = getDatesInRange(startDate, endDate);
+
+    return dateArray.map((date) => {
+      const foundData = dailySalesData.find((item) => item._id === date);
+
+      return {
+        date,
+        sales: foundData?.sales || 0,
+        revenue: foundData?.revenue || 0,
+      };
+    });
+  } catch (error) {
+    throw error;
+  }
+};
+```
+
+---
+
+### 🧮 Helper: getDatesInRange()
+
+```js
+function getDatesInRange(startDate, endDate) {
+  const dates = [];
+  let currentDate = new Date(startDate);
+
+  while (currentDate <= endDate) {
+    dates.push(currentDate.toISOString().split("T")[0]);
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return dates;
+}
+```
+
+---
+
+### ✅ Summary
+
+- 🔐 Admin-only analytics dashboard
+- 📊 Instant insight into users, products, orders, and revenue
+- 📅 Daily breakdown chart-ready for visualization
+
